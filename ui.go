@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"strconv"
 	"unicode/utf8"
 
@@ -227,4 +228,40 @@ func (ui *UIState) Draw() {
 	termbox.SetCell(ui.Width+1, ui.Height+3, '╯', fgFrame, termbox.ColorDefault)
 
 	termbox.Flush()
+}
+
+func (ui *UIState) Main() error {
+	if err := termbox.Init(); err != nil {
+		return err
+	}
+	defer termbox.Close()
+	termbox.SetInputMode(termbox.InputEsc)
+
+	ui.Draw()
+	for {
+		switch ev := termbox.PollEvent(); ev.Type {
+		case termbox.EventKey:
+			switch ev.Key {
+			case termbox.KeyEsc:
+				return errors.New("Cancelled")
+			case termbox.KeyArrowLeft:
+				ui.Prev()
+			case termbox.KeyArrowRight:
+				ui.Next()
+			case termbox.KeyArrowUp:
+				ui.Desk().Prev()
+			case termbox.KeyArrowDown:
+				ui.Desk().Next()
+			case termbox.KeyTab:
+				ui.Desk().NextWrap()
+			case termbox.KeyEnter:
+				return nil
+			}
+		case termbox.EventError:
+			return ev.Err
+		}
+		ui.Draw()
+	}
+
+	return errors.New("CAN'T HAPPEN")
 }

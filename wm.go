@@ -90,6 +90,10 @@ func (desk *WMDesktop) PrevWrap() {
 	}
 }
 
+func (desk *WMDesktop) Window() *WMWindow {
+	return &desk.Windows[desk.Selected]
+}
+
 func Desktops(xu *xgbutil.XUtil) ([]WMDesktop, error) {
 	ndesk, err := ewmh.NumberOfDesktopsGet(xu)
 	if err != nil {
