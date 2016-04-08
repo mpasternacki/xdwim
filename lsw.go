@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"unicode/utf8"
 
 	"github.com/BurntSushi/xgb/xproto"
 	"github.com/BurntSushi/xgbutil"
@@ -144,21 +145,30 @@ func Desktops(xu *xgbutil.XUtil) ([]WMDesktop, error) {
 type UIState struct {
 	Desktops []WMDesktop
 	Selected int
+	Height   int
+	Width    int
 }
 
 func NewUIState(desks []WMDesktop) UIState {
-	seldesk := 0
+	st := UIState{
+		Desktops: desks,
+	}
+
 	for i, desk := range desks {
 		if desk.IsCurrent {
-			seldesk = i
-			break
+			st.Selected = i
+		}
+		if nw := len(desk.Windows); nw > st.Height {
+			st.Height = nw
+		}
+		for _, win := range desk.Windows {
+			if nw := utf8.RuneCountInString(win.Name); nw > st.Width {
+				st.Width = nw
+			}
 		}
 	}
 
-	return UIState{
-		Desktops: desks,
-		Selected: seldesk,
-	}
+	return st
 }
 
 func (ui *UIState) Desk() *WMDesktop {
@@ -185,9 +195,18 @@ func (ui *UIState) Next() {
 
 func (ui *UIState) Draw() {
 	cols, rows := termbox.Size()
+	fgFrame := termbox.ColorWhite | termbox.AttrBold
+
+	if rows < ui.Height+4 {
+		panic("Too little rows!")
+	}
+	if cols < ui.Width+2 {
+		panic("Too little cols!")
+	}
 
 	// Tab bar
-	col := 0
+	termbox.SetCell(0, 2, '╭', fgFrame, termbox.ColorDefault)
+	col := 1
 	for i, desk := range ui.Desktops {
 		if !desk.IsVisible() {
 			continue
@@ -195,6 +214,10 @@ func (ui *UIState) Draw() {
 
 		fg := termbox.ColorDefault
 		extra := termbox.Attribute(0)
+
+		if i == ui.Selected {
+			fg = termbox.ColorWhite
+		}
 
 		if desk.IsUrgent {
 			fg = termbox.ColorRed
@@ -205,21 +228,53 @@ func (ui *UIState) Draw() {
 		}
 
 		if i == ui.Selected {
-			fg = fg | termbox.AttrReverse
+			extra = extra | termbox.AttrBold
 		}
 
 		label := fmt.Sprintf("%d (%d)", i, len(desk.Windows))
-		termbox.SetCell(col, 0, ' ', fg, termbox.ColorDefault)
+		if i == ui.Selected {
+			termbox.SetCell(col, 0, '╭', fgFrame, termbox.ColorDefault)
+			termbox.SetCell(col, 1, '│', fgFrame, termbox.ColorDefault)
+			termbox.SetCell(col, 2, '╯', fgFrame, termbox.ColorDefault)
+		} else {
+			termbox.SetCell(col, 0, ' ', fgFrame, termbox.ColorDefault)
+			termbox.SetCell(col, 1, ' ', fgFrame, termbox.ColorDefault)
+			termbox.SetCell(col, 2, '─', fgFrame, termbox.ColorDefault)
+		}
 		col++
 
 		for _, ch := range label {
-			termbox.SetCell(col, 0, ch, fg|extra, termbox.ColorDefault)
+			termbox.SetCell(col, 1, ch, fg|extra, termbox.ColorDefault)
+			if i == ui.Selected {
+				termbox.SetCell(col, 0, '─', fgFrame, termbox.ColorDefault)
+				termbox.SetCell(col, 2, ' ', fgFrame, termbox.ColorDefault)
+			} else {
+				termbox.SetCell(col, 0, ' ', fgFrame, termbox.ColorDefault)
+				termbox.SetCell(col, 2, '─', fgFrame, termbox.ColorDefault)
+			}
 			col++
 		}
 
-		termbox.SetCell(col, 0, ' ', fg, termbox.ColorDefault)
+		if i == ui.Selected {
+			termbox.SetCell(col, 0, '╮', fgFrame, termbox.ColorDefault)
+			termbox.SetCell(col, 1, '│', fgFrame, termbox.ColorDefault)
+			termbox.SetCell(col, 2, '╰', fgFrame, termbox.ColorDefault)
+		} else {
+			termbox.SetCell(col, 0, ' ', fgFrame, termbox.ColorDefault)
+			termbox.SetCell(col, 1, ' ', fgFrame, termbox.ColorDefault)
+			termbox.SetCell(col, 2, '─', fgFrame, termbox.ColorDefault)
+		}
 		col++
 	}
+
+	if col > ui.Width {
+		ui.Width = col
+	}
+
+	for ; col < ui.Width+1; col++ {
+		termbox.SetCell(col, 2, '─', fgFrame, termbox.ColorDefault)
+	}
+	termbox.SetCell(ui.Width+1, 2, '╮', fgFrame, termbox.ColorDefault)
 
 	// Window List
 	desk := ui.Desk()
@@ -239,23 +294,32 @@ func (ui *UIState) Draw() {
 			fg = fg | termbox.AttrReverse
 		}
 
-		termbox.SetCell(0, i+1, ' ', fg, termbox.ColorDefault)
+		termbox.SetCell(0, i+3, '│', fgFrame, termbox.ColorDefault)
 		col = 1
 		for _, ch := range win.Name {
-			termbox.SetCell(col, i+1, ch, fg|extra, termbox.ColorDefault)
+			termbox.SetCell(col, i+3, ch, fg|extra, termbox.ColorDefault)
 			col++
 		}
 
-		for ; col < cols; col++ {
-			termbox.SetCell(col, i+1, ' ', fg, termbox.ColorDefault)
+		for ; col < ui.Width+1; col++ {
+			termbox.SetCell(col, i+3, ' ', fg, termbox.ColorDefault)
 		}
+		termbox.SetCell(ui.Width+1, i+3, '│', fgFrame, termbox.ColorDefault)
 	}
 
-	for i := 1 + len(desk.Windows); i < rows; i++ {
-		for j := 0; j < cols; j++ {
-			termbox.SetCell(j, i, ' ', termbox.ColorDefault, termbox.ColorDefault)
+	for i := len(desk.Windows); i < ui.Height; i++ {
+		termbox.SetCell(0, i+3, '│', fgFrame, termbox.ColorDefault)
+		for j := 1; j < ui.Width+1; j++ {
+			termbox.SetCell(j, i+3, ' ', termbox.ColorDefault, termbox.ColorDefault)
 		}
+		termbox.SetCell(ui.Width+1, i+3, '│', fgFrame, termbox.ColorDefault)
 	}
+
+	termbox.SetCell(0, ui.Height+3, '╰', fgFrame, termbox.ColorDefault)
+	for j := 1; j < ui.Width+1; j++ {
+		termbox.SetCell(j, ui.Height+3, '─', termbox.ColorDefault, termbox.ColorDefault)
+	}
+	termbox.SetCell(ui.Width+1, ui.Height+3, '╯', fgFrame, termbox.ColorDefault)
 
 	termbox.Flush()
 }
