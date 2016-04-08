@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 
@@ -84,6 +85,85 @@ func mousePos(ev termbox.Event) (x int, y int) {
 	return
 }
 
+func uiMain() error {
+	if err := termbox.Init(); err != nil {
+		return err
+	}
+	defer termbox.Close()
+	termbox.SetInputMode(termbox.InputEsc | termbox.InputMouse)
+
+	draw()
+	mouseHold := false
+	for {
+		switch ev := termbox.PollEvent(); ev.Type {
+		case termbox.EventKey:
+			switch ev.Key {
+			case termbox.KeyEsc:
+				markX = -1
+				markY = -1
+				return nil
+			case termbox.KeyArrowUp:
+				if posY > 0 {
+					posY--
+				}
+			case termbox.KeyArrowDown:
+				if posY < 11 {
+					posY++
+				}
+			case termbox.KeyArrowLeft:
+				if posX > 0 {
+					posX--
+				}
+			case termbox.KeyArrowRight:
+				if posX < 11 {
+					posX++
+				}
+			case termbox.KeyEnter:
+				if markX < 0 {
+					markX, markY = posX, posY
+				} else {
+					return nil
+				}
+			case termbox.KeyTab:
+				if markX >= 0 {
+					markX, posX = posX, markX
+					markY, posY = posY, markY
+				}
+			case termbox.KeyBackspace, termbox.KeyBackspace2:
+				markX = -1
+				markY = -1
+			default:
+				switch ev.Ch {
+				case 'q': // FIXME: same as Esc
+					markX = -1
+					markY = -1
+					return nil
+				case ' ':
+					markX, markY = posX, posY
+				}
+			}
+		case termbox.EventMouse:
+			switch ev.Key {
+			case termbox.MouseLeft:
+				posX, posY = mousePos(ev)
+				if !mouseHold {
+					markX, markY = posX, posY
+				}
+				mouseHold = true
+			case termbox.MouseRight:
+				markX, markY = mousePos(ev)
+			case termbox.MouseRelease:
+				mouseHold = false
+			}
+		case termbox.EventError:
+			return ev.Err
+		}
+		draw()
+	}
+
+	return errors.New("CAN'T HAPPEN")
+}
+
 func main() {
 	xu, err := xgbutil.NewConn()
 	if err != nil {
@@ -91,12 +171,13 @@ func main() {
 	}
 
 	// get active window's center
-	aw, err := ewmh.ActiveWindowGet(xu)
+	axw, err := ewmh.ActiveWindowGet(xu)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	geom, err := xwindow.New(xu, aw).Geometry()
+	aw := xwindow.New(xu, axw)
+	geom, err := aw.Geometry()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -123,69 +204,39 @@ func main() {
 	fmt.Println(heads)
 	fmt.Println(geom, "→", cx, cy, "→", awHead)
 
-	if err := termbox.Init(); err != nil {
+	err = uiMain()
+	if err != nil {
 		log.Fatal(err)
 	}
-	defer termbox.Close()
-	termbox.SetInputMode(termbox.InputEsc | termbox.InputMouse)
 
-	draw()
-	mouseHold := false
-	for {
-		switch ev := termbox.PollEvent(); ev.Type {
-		case termbox.EventKey:
-			switch ev.Key {
-			case termbox.KeyEsc:
-				return
-				// return nil
-			case termbox.KeyArrowUp:
-				if posY > 0 {
-					posY--
-				}
-			case termbox.KeyArrowDown:
-				if posY < 11 {
-					posY++
-				}
-			case termbox.KeyArrowLeft:
-				if posX > 0 {
-					posX--
-				}
-			case termbox.KeyArrowRight:
-				if posX < 11 {
-					posX++
-				}
-			case termbox.KeyEnter:
-				if markX < 0 {
-					markX, markY = posX, posY
-				} else {
-					markX, posX = posX, markX
-					markY, posY = posY, markY
-				}
-			case termbox.KeyBackspace, termbox.KeyBackspace2:
-				markX = -1
-				markY = -1
-			default:
-				switch ev.Ch {
-				case 'q':
-					return // nil
-				}
-			}
-		case termbox.EventMouse:
-			switch ev.Key {
-			case termbox.MouseLeft:
-				posX, posY = mousePos(ev)
-				if !mouseHold {
-					markX, markY = posX, posY
-				}
-				mouseHold = true
-			case termbox.MouseRight:
-				markX, markY = mousePos(ev)
-			case termbox.MouseRelease:
-				mouseHold = false
-			}
-		case termbox.EventError:
-			log.Fatal(ev.Err)
-		}
-		draw()
+	if markX < 0 {
+		return
+	}
+
+	if posX > markX {
+		posX, markX = markX, posX
+	}
+
+	if posY > markY {
+		posY, markY = markY, posY
+	}
+
+	markX++
+	markY++
+
+	stepX := awHead.Width() / 12
+	stepY := awHead.Height() / 12
+	x := posX * stepX
+	y := posY * stepY
+	w := (markX - posX) * stepX
+	h := (markY - posY) * stepY
+
+	fmt.Println(posX, posY, markX, markY, "*", stepX, stepY, "→", x, y, w, h)
+
+	// TODO: check if ewmh.MoveresizeWindow(xu, aw, x, y, w, h) is supported (not in cwm)
+	aw.MoveResize(x, y, w, h)
+	err = ewmh.ActiveWindowReq(xu, axw)
+	if err != nil {
+		log.Fatal(err)
 	}
 }
