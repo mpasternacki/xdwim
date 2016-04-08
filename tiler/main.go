@@ -11,6 +11,8 @@ import (
 	"github.com/BurntSushi/xgbutil/xwindow"
 
 	"github.com/mpasternacki/termbox-go"
+
+	"../urxvtermbox"
 )
 
 var posX = 0
@@ -86,6 +88,12 @@ func mousePos(ev termbox.Event) (x int, y int) {
 }
 
 func uiMain() error {
+	if fini, err := urxvtermbox.TermboxUrxvt(28, 14); err != nil {
+		return err
+	} else {
+		defer fini()
+	}
+
 	if err := termbox.Init(); err != nil {
 		return err
 	}

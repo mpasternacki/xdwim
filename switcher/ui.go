@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"unicode/utf8"
 
+	"../urxvtermbox"
 	"github.com/mpasternacki/termbox-go"
 )
 
@@ -234,7 +235,7 @@ func (ui *UIState) Draw() {
 }
 
 func (ui *UIState) Main() error {
-	if fini, err := TermboxUrxvt(ui.Width+2, ui.Height+4); err != nil {
+	if fini, err := urxvtermbox.TermboxUrxvt(ui.Width+2, ui.Height+4); err != nil {
 		return err
 	} else {
 		defer fini()
