@@ -2,10 +2,15 @@ package main
 
 import (
 	"errors"
+	"fmt"
+	"os"
+	"os/exec"
 	"strconv"
+	"time"
 	"unicode/utf8"
 
-	"github.com/nsf/termbox-go"
+	"github.com/kr/pty"
+	"github.com/mpasternacki/termbox-go"
 )
 
 type UIState struct {
@@ -230,7 +235,7 @@ func (ui *UIState) Draw() {
 	termbox.Flush()
 }
 
-func (ui *UIState) Main() error {
+func (ui *UIState) innerMain() error {
 	if err := termbox.Init(); err != nil {
 		return err
 	}
@@ -264,4 +269,39 @@ func (ui *UIState) Main() error {
 	}
 
 	return errors.New("CAN'T HAPPEN")
+}
+
+func (ui *UIState) Main() error {
+
+	master, slave, err := pty.Open()
+	if err != nil {
+		return err
+	}
+
+	cmd := exec.Command("urxvt", "-pty-fd", "3", "-geometry", fmt.Sprintf("%dx%d", ui.Width+2, ui.Height+4))
+	defer func() {
+		slave.Close()
+		if cmd.Process != nil {
+			cmd.Wait()
+		}
+	}()
+
+	cmd.ExtraFiles = []*os.File{master}
+	cmd.Start()
+
+	// poll until urxvt is done starting
+	for {
+		rows, _, err := pty.Getsize(slave)
+		if err != nil {
+			return err
+		}
+		if rows > 0 {
+			break
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+
+	termbox.TerminalDevice = slave.Name()
+
+	return ui.innerMain()
 }
