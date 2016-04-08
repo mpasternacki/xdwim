@@ -2,14 +2,9 @@ package main
 
 import (
 	"errors"
-	"fmt"
-	"os"
-	"os/exec"
 	"strconv"
-	"time"
 	"unicode/utf8"
 
-	"github.com/kr/pty"
 	"github.com/mpasternacki/termbox-go"
 )
 
@@ -43,6 +38,9 @@ func NewUIState(desks []WMDesktop) UIState {
 }
 
 func (ui *UIState) Desk() *WMDesktop {
+	if ui.Selected < 0 {
+		return nil
+	}
 	return &ui.Desktops[ui.Selected]
 }
 
@@ -235,7 +233,13 @@ func (ui *UIState) Draw() {
 	termbox.Flush()
 }
 
-func (ui *UIState) innerMain() error {
+func (ui *UIState) Main() error {
+	if fini, err := TermboxUrxvt(ui.Width+2, ui.Height+4); err != nil {
+		return err
+	} else {
+		defer fini()
+	}
+
 	if err := termbox.Init(); err != nil {
 		return err
 	}
@@ -248,7 +252,8 @@ func (ui *UIState) innerMain() error {
 		case termbox.EventKey:
 			switch ev.Key {
 			case termbox.KeyEsc:
-				return errors.New("Cancelled")
+				ui.Selected = -1
+				return nil
 			case termbox.KeyArrowLeft:
 				ui.Prev()
 			case termbox.KeyArrowRight:
@@ -269,39 +274,4 @@ func (ui *UIState) innerMain() error {
 	}
 
 	return errors.New("CAN'T HAPPEN")
-}
-
-func (ui *UIState) Main() error {
-
-	master, slave, err := pty.Open()
-	if err != nil {
-		return err
-	}
-
-	cmd := exec.Command("urxvt", "-pty-fd", "3", "-geometry", fmt.Sprintf("%dx%d", ui.Width+2, ui.Height+4))
-	defer func() {
-		slave.Close()
-		if cmd.Process != nil {
-			cmd.Wait()
-		}
-	}()
-
-	cmd.ExtraFiles = []*os.File{master}
-	cmd.Start()
-
-	// poll until urxvt is done starting
-	for {
-		rows, _, err := pty.Getsize(slave)
-		if err != nil {
-			return err
-		}
-		if rows > 0 {
-			break
-		}
-		time.Sleep(5 * time.Millisecond)
-	}
-
-	termbox.TerminalDevice = slave.Name()
-
-	return ui.innerMain()
 }
