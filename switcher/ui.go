@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"log"
 	"strconv"
 	"unicode/utf8"
 
@@ -242,17 +243,20 @@ func (ui *UIState) Draw() {
 	termbox.Flush()
 }
 
-func (ui *UIState) Main() error {
-	if fini, err := urxvtermbox.TermboxUrxvt(ui.Width+2, ui.Height+4); err != nil {
+func (ui *UIState) Main() (erv error) {
+	if fini, err := urxvtermbox.TermboxUrxvt(ui.Width+2, ui.Height+4, "-pe", "destroy_on_focus_out"); err != nil {
 		return err
 	} else {
-		defer fini()
+		defer func() {
+			if err := fini(); err != nil {
+				if erv == nil {
+					erv = err
+					// It's been logged anyway
+				}
+			}
+		}()
 	}
 
-	if err := termbox.Init(); err != nil {
-		return err
-	}
-	defer termbox.Close()
 	termbox.SetInputMode(termbox.InputEsc)
 
 	ui.Draw()
@@ -341,8 +345,12 @@ func (ui *UIState) Main() error {
 					}
 				}
 			}
+		case termbox.EventInterrupt:
+			return cmdCancel
 		case termbox.EventError:
 			return ev.Err
+		default:
+			log.Println("EVENT:", ev)
 		}
 		ui.Draw()
 	}

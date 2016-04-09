@@ -143,16 +143,12 @@ func doMove(dx, dy int) {
 }
 
 func uiMain() error {
-	if fini, err := urxvtermbox.TermboxUrxvt(28, 14); err != nil {
+	if fini, err := urxvtermbox.TermboxUrxvt(28, 14, "-pe", "destroy_on_focus_out"); err != nil {
 		return err
 	} else {
 		defer fini()
 	}
 
-	if err := termbox.Init(); err != nil {
-		return err
-	}
-	defer termbox.Close()
 	termbox.SetInputMode(termbox.InputEsc | termbox.InputMouse)
 
 	draw()
@@ -282,6 +278,10 @@ func uiMain() error {
 			case termbox.MouseRelease:
 				mouseHold = false
 			}
+		case termbox.EventInterrupt:
+			markX = -1
+			markY = -1
+			return nil
 		case termbox.EventError:
 			return ev.Err
 		}

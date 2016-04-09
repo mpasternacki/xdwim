@@ -1,0 +1,5 @@
+# -*- cperl -*-
+sub on_focus_out {
+  $_[0]->destroy;
+  ()
+}
