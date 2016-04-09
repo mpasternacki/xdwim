@@ -253,8 +253,7 @@ func (ui *UIState) Main() error {
 		case termbox.EventKey:
 			switch ev.Key {
 			case termbox.KeyEsc:
-				ui.Selected = -1
-				return nil
+				return cmdCancel
 			case termbox.KeyArrowLeft:
 				ui.Prev()
 			case termbox.KeyArrowRight:
@@ -267,6 +266,8 @@ func (ui *UIState) Main() error {
 				ui.Desk().NextWrap()
 			case termbox.KeyEnter:
 				return nil
+			case termbox.KeyBackspace, termbox.KeyBackspace2:
+				return cmdCloseWindow
 			default:
 				switch ev.Ch {
 				case 'w': // ↑
@@ -278,8 +279,7 @@ func (ui *UIState) Main() error {
 				case 'd': // →
 					ui.Desk().Next()
 				case 'q': // Esc
-					ui.Selected = -1
-					return nil
+					return cmdCancel
 				case 'e': // move to active window
 					for i, desk := range ui.Desktops {
 						if desk.IsCurrent {

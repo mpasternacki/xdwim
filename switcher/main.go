@@ -1,43 +1,54 @@
 package main
 
 import (
+	"errors"
 	"log"
 
 	"github.com/BurntSushi/xgbutil"
 	"github.com/BurntSushi/xgbutil/ewmh"
 )
 
-func main() {
+var cmdCloseWindow = errors.New("CLOSE WINDOW")
+var cmdCancel = errors.New("CANCEL")
+
+func innerMain() error {
 	xu, err := xgbutil.NewConn()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	desks, err := Desktops(xu)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	ui := NewUIState(desks)
 
-	err = ui.Main()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if desk := ui.Desk(); desk != nil {
+	switch err := ui.Main(); err {
+	case cmdCancel:
+		return nil
+	case cmdCloseWindow:
+		xw := ui.Desk().Window().XWin
+		return ewmh.CloseWindow(xu, xw)
+	case nil:
+		// default: choose window
+		desk := ui.Desk()
 		win := desk.Window()
 		xw := win.XWin
-		log.Println(win, xw, desk.Number)
 
 		err = ewmh.CurrentDesktopReq(xu, int(desk.Number))
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 
-		err = ewmh.ActiveWindowReq(xu, xw)
-		if err != nil {
-			log.Fatal(err)
-		}
+		return ewmh.ActiveWindowReq(xu, xw)
+	default:
+		return err
+	}
+}
+
+func main() {
+	if err := innerMain(); err != nil {
+		log.Fatal(err)
 	}
 }
