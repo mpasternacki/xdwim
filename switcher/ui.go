@@ -309,6 +309,36 @@ func (ui *UIState) Main() error {
 					}
 				case ' ': // same as Enter
 					return nil
+				case '!':
+					// Find next urgent window
+					sxw := ui.Desk().Window().XWin
+					d := ui.Selected
+					w := ui.Desk().Selected
+					for {
+						w++                                   // next window
+						if w >= len(ui.Desktops[d].Windows) { // next desktop
+							w = 0
+							for {
+								d++
+								if d >= len(ui.Desktops) {
+									d = 0
+								}
+								if len(ui.Desktops[d].Windows) > 0 {
+									break
+								}
+							}
+						}
+						win := ui.Desktops[d].Windows[w]
+						if win.XWin == sxw {
+							// We have wrapped around, let's break
+							break
+						}
+						if win.IsUrgent {
+							ui.Selected = d
+							ui.Desk().Selected = w
+							break
+						}
+					}
 				}
 			}
 		case termbox.EventError:
