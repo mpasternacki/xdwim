@@ -63,7 +63,7 @@ func (ui *UIState) Next() {
 	}
 }
 
-var indexDigits = []rune{'⁰', '¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹', '⁻', '⁼'}
+var indexDigits = []rune{'⁰', '¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹'}
 
 func (ui *UIState) Draw() {
 	cols, rows := termbox.Size()
@@ -267,6 +267,41 @@ func (ui *UIState) Main() error {
 				ui.Desk().NextWrap()
 			case termbox.KeyEnter:
 				return nil
+			default:
+				switch ev.Ch {
+				case 'w': // ↑
+					ui.Prev()
+				case 's': // ↓
+					ui.Next()
+				case 'a': // ←
+					ui.Desk().Prev()
+				case 'd': // →
+					ui.Desk().Next()
+				case 'q': // Esc
+					ui.Selected = -1
+					return nil
+				case 'e': // move to active window
+					for i, desk := range ui.Desktops {
+						if desk.IsCurrent {
+							ui.Selected = i
+							for j, win := range desk.Windows {
+								if win.IsActive {
+									// desk is not a pointer
+									ui.Desktops[i].Selected = j
+									break
+								}
+							}
+							break
+						}
+					}
+
+				case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+					if desk := int(ev.Ch - '0'); desk < len(ui.Desktops) && len(ui.Desktops[desk].Windows) > 0 {
+						ui.Selected = desk
+					}
+				case ' ': // same as Enter
+					return nil
+				}
 			}
 		case termbox.EventError:
 			return ev.Err
