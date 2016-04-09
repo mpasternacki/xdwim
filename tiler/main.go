@@ -200,10 +200,12 @@ func uiMain() error {
 				case 'q':
 					markX = -1
 					markY = -1
-					return nil
+					prefix = 1
 				case 'e':
-					markX = -1
-					markY = -1
+					posX = origX1
+					posY = origY1
+					markX = origX0
+					markY = origY0
 					prefix = 1
 				case 'w':
 					doMove(0, -prefix)
@@ -237,6 +239,28 @@ func uiMain() error {
 					prefix = 11
 				case '=':
 					prefix = 12
+				case 'h':
+					if posX < markX {
+						posX = 0
+						markX = 11
+					} else {
+						posX = 11
+						markX = 0
+					}
+					if markY < 0 {
+						markY = posY
+					}
+				case 'v':
+					if posY < markY {
+						posY = 0
+						markY = 11
+					} else {
+						posY = 11
+						markY = 0
+					}
+					if markX < 0 {
+						markX = posX
+					}
 				}
 			}
 		case termbox.EventMouse:
