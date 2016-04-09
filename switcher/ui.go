@@ -283,13 +283,13 @@ func (ui *UIState) Main() (erv error) {
 			default:
 				switch ev.Ch {
 				case 'w': // ↑
-					ui.Prev()
-				case 's': // ↓
-					ui.Next()
-				case 'a': // ←
 					ui.Desk().Prev()
-				case 'd': // →
+				case 's': // ↓
 					ui.Desk().Next()
+				case 'a': // ←
+					ui.Prev()
+				case 'd': // →
+					ui.Next()
 				case 'q': // Esc
 					return cmdCancel
 				case 'e': // move to active window
