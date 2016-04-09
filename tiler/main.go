@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"log"
 
 	"github.com/BurntSushi/xgbutil"
@@ -15,12 +14,17 @@ import (
 	"../urxvtermbox"
 )
 
-var posX = 0
-var posY = 0
-
-var markX = -1
-var markY = -1
-var prefix = 1
+var (
+	origX0 = 0
+	origX1 = 0
+	origY0 = 0
+	origY1 = 1
+	posX   = 0
+	posY   = 0
+	markX  = -1
+	markY  = -1
+	prefix = 1
+)
 
 func draw() {
 	// axes
@@ -51,16 +55,21 @@ func draw() {
 	// grid
 	for i := 0; i < 12; i++ {
 		for j := 0; j < 12; j++ {
+			// default fg & char
 			fg := termbox.ColorBlue
-			if (i+j)%2 == 1 {
-				fg = fg | termbox.AttrBold
+			ch := '░'
+
+			// original win dimensions are green
+			if i >= origX0 && i <= origX1 && j >= origY0 && j <= origY1 {
+				fg = termbox.ColorGreen
 			}
 
-			ch := '░'
+			// cursor is yellow & solid
 			if i == posX && j == posY {
 				ch = '█'
-				fg = termbox.ColorYellow | (fg & termbox.AttrBold)
+				fg = termbox.ColorYellow
 			} else if markX >= 0 && markY >= 0 {
+				// besides cursor, selected block is more solid
 				l, r, t, b := posX, markX, posY, markY
 				if l > r {
 					l, r = r, l
@@ -71,6 +80,11 @@ func draw() {
 				if l <= i && i <= r && t <= j && j <= b {
 					ch = '▓'
 				}
+			}
+
+			// bold/regular checkers
+			if (i+j)%2 == 1 {
+				fg = fg | termbox.AttrBold
 			}
 
 			termbox.SetCell(2*i+2, j+1, ch, fg, termbox.ColorDefault)
@@ -284,8 +298,30 @@ func main() {
 		}
 	}
 
-	fmt.Println(heads)
-	fmt.Println(geom, "→", cx, cy, "→", awHead)
+	// fmt.Println(heads)
+	// fmt.Println(geom, "→", cx, cy, "→", awHead)
+
+	// Figure out original position on grid
+	x0, x1, y0, y1 := geom.X(), geom.X()+geom.Width(), geom.Y(), geom.Y()+geom.Height()
+	if awhx0 := awHead.X(); x0 < awhx0 {
+		x0 = awhx0
+	}
+	if awhx1 := awHead.X() + awHead.Width(); x1 > awhx1 {
+		x1 = awhx1
+	}
+	if awhy0 := awHead.Y(); y0 < awhy0 {
+		y0 = awhy0
+	}
+	if awhy1 := awHead.Y() + awHead.Height(); y1 > awhy1 {
+		y1 = awhy1
+	}
+
+	stepX := awHead.Width() / 12
+	stepY := awHead.Height() / 12
+	origX0 = (x0 + 1) / stepX
+	origX1 = (x1 - 1) / stepX
+	origY0 = (y0 + 1) / stepY
+	origY1 = (y1 - 1) / stepY
 
 	err = uiMain()
 	if err != nil {
@@ -307,17 +343,21 @@ func main() {
 	markX++
 	markY++
 
-	stepX := awHead.Width() / 12
-	stepY := awHead.Height() / 12
 	x := posX * stepX
 	y := posY * stepY
 	w := (markX - posX) * stepX
 	h := (markY - posY) * stepY
+	// if r := awHead.X() + awHead.Width(); x+w > r {
+	// 	w -= r - (x + w)
+	// }
+	// if b := awHead.Y() + awHead.Height(); y+h > b {
+	// 	h -= b - (y + h)
+	// }
 
-	fmt.Println(posX, posY, markX, markY, "*", stepX, stepY, "→", x, y, w, h)
+	// fmt.Println(posX, posY, markX, markY, "*", stepX, stepY, "→", x, y, w, h)
 
 	// TODO: check if ewmh.MoveresizeWindow(xu, aw, x, y, w, h) is supported (not in cwm)
-	aw.MoveResize(x, y, w, h)
+	aw.MoveResize(x+2, y+2, w-4, h-4)
 	err = ewmh.ActiveWindowReq(xu, axw)
 	if err != nil {
 		log.Fatal(err)
