@@ -261,6 +261,12 @@ func uiMain() error {
 					if markX < 0 {
 						markX = posX
 					}
+				case 'x':
+					posX = prefix - 1
+					prefix = 1
+				case 'y':
+					posY = prefix - 1
+					prefix = 1
 				}
 			}
 		case termbox.EventMouse:
