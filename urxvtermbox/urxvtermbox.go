@@ -12,20 +12,6 @@ import (
 	"github.com/mpasternacki/termbox-go"
 )
 
-var UrxvtermboxPath string
-
-func init() {
-	absbin, err := filepath.Abs(os.Args[0])
-	if err != nil {
-		panic(err)
-	}
-	realbin, err := filepath.EvalSymlinks(absbin)
-	if err != nil {
-		panic(err)
-	}
-	UrxvtermboxPath = filepath.Join(filepath.Dir(filepath.Dir(realbin)), "urxvtermbox", "perl")
-}
-
 func UrxvtPty(args ...string) (*os.File, func(), <-chan error, error) {
 	master, slave, err := pty.Open()
 	if err != nil {
@@ -35,7 +21,6 @@ func UrxvtPty(args ...string) (*os.File, func(), <-chan error, error) {
 	cmd := exec.Command("urxvt", append([]string{
 		"-pty-fd", "3",
 		"-title", filepath.Base(os.Args[0]),
-		"--perl-lib", UrxvtermboxPath,
 	}, args...)...)
 
 	cmd.ExtraFiles = []*os.File{master}
