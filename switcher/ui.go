@@ -67,7 +67,8 @@ var indexDigits = []rune{'⁰', '¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '�
 
 func (ui *UIState) Draw() {
 	cols, rows := termbox.Size()
-	fgFrame := termbox.ColorWhite | termbox.AttrBold
+	fgFrame := termbox.ColorYellow
+	fgTitle := termbox.ColorGreen
 
 	if rows < ui.Height+4 {
 		panic("Too little rows!")
@@ -77,18 +78,18 @@ func (ui *UIState) Draw() {
 	}
 
 	// Tab bar
-	termbox.SetCell(0, 2, '╭', fgFrame, termbox.ColorDefault)
+	termbox.SetCell(0, 2, '╭', fgFrame|termbox.AttrBold, termbox.ColorDefault)
 	col := 1
 	for i, desk := range ui.Desktops {
 		if !desk.IsVisible() {
 			continue
 		}
 
-		fg := termbox.ColorDefault
+		fg := fgTitle // termbox.ColorDefault
 		extra := termbox.Attribute(0)
 
 		if i == ui.Selected {
-			fg = termbox.ColorWhite
+			// fg = termbox.ColorWhite
 		}
 
 		if desk.IsUrgent {
@@ -103,76 +104,83 @@ func (ui *UIState) Draw() {
 			extra = extra | termbox.AttrBold
 		}
 
-		if i == ui.Selected {
+		if i < ui.Selected {
 			termbox.SetCell(col, 0, '╭', fgFrame, termbox.ColorDefault)
 			termbox.SetCell(col, 1, '│', fgFrame, termbox.ColorDefault)
-			termbox.SetCell(col, 2, '╯', fgFrame, termbox.ColorDefault)
+			termbox.SetCell(col, 2, '─', fgFrame|termbox.AttrBold, termbox.ColorDefault)
+		} else if i == ui.Selected {
+			termbox.SetCell(col, 0, '╭', fgFrame|termbox.AttrBold, termbox.ColorDefault)
+			termbox.SetCell(col, 1, '│', fgFrame|termbox.AttrBold, termbox.ColorDefault)
+			termbox.SetCell(col, 2, '╯', fgFrame|termbox.AttrBold, termbox.ColorDefault)
 		} else {
-			termbox.SetCell(col, 0, ' ', fgFrame, termbox.ColorDefault)
+			termbox.SetCell(col, 0, '─', fgFrame, termbox.ColorDefault)
 			termbox.SetCell(col, 1, ' ', fgFrame, termbox.ColorDefault)
-			termbox.SetCell(col, 2, '─', fgFrame, termbox.ColorDefault)
+			termbox.SetCell(col, 2, '─', fgFrame|termbox.AttrBold, termbox.ColorDefault)
 		}
 		col++
 
-		// TODO: desktop # for keyboard shortcut here
 		index := ' '
 		if i < len(indexDigits) {
 			index = indexDigits[i]
 		}
 		if i == ui.Selected {
-			termbox.SetCell(col, 0, '─', fgFrame, termbox.ColorDefault)
-			termbox.SetCell(col, 1, index, termbox.ColorDefault, termbox.ColorDefault)
+			termbox.SetCell(col, 0, '─', fgFrame|termbox.AttrBold, termbox.ColorDefault)
+			termbox.SetCell(col, 1, index, fgFrame, termbox.ColorDefault)
 			termbox.SetCell(col, 2, ' ', fgFrame, termbox.ColorDefault)
 		} else {
-			termbox.SetCell(col, 0, ' ', fgFrame, termbox.ColorDefault)
-			termbox.SetCell(col, 1, index, termbox.ColorDefault, termbox.ColorDefault)
-			termbox.SetCell(col, 2, '─', fgFrame, termbox.ColorDefault)
+			termbox.SetCell(col, 0, '─', fgFrame, termbox.ColorDefault)
+			termbox.SetCell(col, 1, index, fgFrame, termbox.ColorDefault)
+			termbox.SetCell(col, 2, '─', fgFrame|termbox.AttrBold, termbox.ColorDefault)
 		}
 		col++
 
 		for _, ch := range desk.Name {
 			termbox.SetCell(col, 1, ch, fg|extra, termbox.ColorDefault)
 			if i == ui.Selected {
-				termbox.SetCell(col, 0, '─', fgFrame, termbox.ColorDefault)
+				termbox.SetCell(col, 0, '─', fgFrame|termbox.AttrBold, termbox.ColorDefault)
 				termbox.SetCell(col, 2, ' ', fgFrame, termbox.ColorDefault)
 			} else {
-				termbox.SetCell(col, 0, ' ', fgFrame, termbox.ColorDefault)
-				termbox.SetCell(col, 2, '─', fgFrame, termbox.ColorDefault)
+				termbox.SetCell(col, 0, '─', fgFrame, termbox.ColorDefault)
+				termbox.SetCell(col, 2, '─', fgFrame|termbox.AttrBold, termbox.ColorDefault)
 			}
 			col++
 		}
 
 		if i == ui.Selected {
-			termbox.SetCell(col, 0, '─', fgFrame, termbox.ColorDefault)
+			termbox.SetCell(col, 0, '─', fgFrame|termbox.AttrBold, termbox.ColorDefault)
 			termbox.SetCell(col, 1, ' ', fgFrame, termbox.ColorDefault)
 			termbox.SetCell(col, 2, ' ', fgFrame, termbox.ColorDefault)
 		} else {
-			termbox.SetCell(col, 0, ' ', fgFrame, termbox.ColorDefault)
+			termbox.SetCell(col, 0, '─', fgFrame, termbox.ColorDefault)
 			termbox.SetCell(col, 1, ' ', fgFrame, termbox.ColorDefault)
-			termbox.SetCell(col, 2, '─', fgFrame, termbox.ColorDefault)
+			termbox.SetCell(col, 2, '─', fgFrame|termbox.AttrBold, termbox.ColorDefault)
 		}
 		col++
 
 		for _, ch := range strconv.Itoa(len(desk.Windows)) {
-			termbox.SetCell(col, 1, ch, termbox.ColorDefault, termbox.ColorDefault)
+			termbox.SetCell(col, 1, ch, fgFrame, termbox.ColorDefault)
 			if i == ui.Selected {
-				termbox.SetCell(col, 0, '─', fgFrame, termbox.ColorDefault)
+				termbox.SetCell(col, 0, '─', fgFrame|termbox.AttrBold, termbox.ColorDefault)
 				termbox.SetCell(col, 2, ' ', fgFrame, termbox.ColorDefault)
 			} else {
-				termbox.SetCell(col, 0, ' ', fgFrame, termbox.ColorDefault)
-				termbox.SetCell(col, 2, '─', fgFrame, termbox.ColorDefault)
+				termbox.SetCell(col, 0, '─', fgFrame, termbox.ColorDefault)
+				termbox.SetCell(col, 2, '─', fgFrame|termbox.AttrBold, termbox.ColorDefault)
 			}
 			col++
 		}
 
-		if i == ui.Selected {
+		if i > ui.Selected {
 			termbox.SetCell(col, 0, '╮', fgFrame, termbox.ColorDefault)
 			termbox.SetCell(col, 1, '│', fgFrame, termbox.ColorDefault)
-			termbox.SetCell(col, 2, '╰', fgFrame, termbox.ColorDefault)
+			termbox.SetCell(col, 2, '─', fgFrame|termbox.AttrBold, termbox.ColorDefault)
+		} else if i == ui.Selected {
+			termbox.SetCell(col, 0, '╮', fgFrame|termbox.AttrBold, termbox.ColorDefault)
+			termbox.SetCell(col, 1, '│', fgFrame|termbox.AttrBold, termbox.ColorDefault)
+			termbox.SetCell(col, 2, '╰', fgFrame|termbox.AttrBold, termbox.ColorDefault)
 		} else {
-			termbox.SetCell(col, 0, ' ', fgFrame, termbox.ColorDefault)
+			termbox.SetCell(col, 0, '─', fgFrame, termbox.ColorDefault)
 			termbox.SetCell(col, 1, ' ', fgFrame, termbox.ColorDefault)
-			termbox.SetCell(col, 2, '─', fgFrame, termbox.ColorDefault)
+			termbox.SetCell(col, 2, '─', fgFrame|termbox.AttrBold, termbox.ColorDefault)
 		}
 		col++
 	}
@@ -182,9 +190,9 @@ func (ui *UIState) Draw() {
 	}
 
 	for ; col < ui.Width+1; col++ {
-		termbox.SetCell(col, 2, '─', fgFrame, termbox.ColorDefault)
+		termbox.SetCell(col, 2, '─', fgFrame|termbox.AttrBold, termbox.ColorDefault)
 	}
-	termbox.SetCell(ui.Width+1, 2, '╮', fgFrame, termbox.ColorDefault)
+	termbox.SetCell(ui.Width+1, 2, '╮', fgFrame|termbox.AttrBold, termbox.ColorDefault)
 
 	// Window List
 	desk := ui.Desk()
@@ -204,7 +212,7 @@ func (ui *UIState) Draw() {
 			fg = fg | termbox.AttrReverse
 		}
 
-		termbox.SetCell(0, i+3, '│', fgFrame, termbox.ColorDefault)
+		termbox.SetCell(0, i+3, '│', fgFrame|termbox.AttrBold, termbox.ColorDefault)
 		col = 1
 		for _, ch := range win.Name {
 			termbox.SetCell(col, i+3, ch, fg|extra, termbox.ColorDefault)
@@ -214,22 +222,22 @@ func (ui *UIState) Draw() {
 		for ; col < ui.Width+1; col++ {
 			termbox.SetCell(col, i+3, ' ', fg, termbox.ColorDefault)
 		}
-		termbox.SetCell(ui.Width+1, i+3, '│', fgFrame, termbox.ColorDefault)
+		termbox.SetCell(ui.Width+1, i+3, '│', fgFrame|termbox.AttrBold, termbox.ColorDefault)
 	}
 
 	for i := len(desk.Windows); i < ui.Height; i++ {
-		termbox.SetCell(0, i+3, '│', fgFrame, termbox.ColorDefault)
+		termbox.SetCell(0, i+3, '│', fgFrame|termbox.AttrBold, termbox.ColorDefault)
 		for j := 1; j < ui.Width+1; j++ {
 			termbox.SetCell(j, i+3, ' ', termbox.ColorDefault, termbox.ColorDefault)
 		}
-		termbox.SetCell(ui.Width+1, i+3, '│', fgFrame, termbox.ColorDefault)
+		termbox.SetCell(ui.Width+1, i+3, '│', fgFrame|termbox.AttrBold, termbox.ColorDefault)
 	}
 
-	termbox.SetCell(0, ui.Height+3, '╰', fgFrame, termbox.ColorDefault)
+	termbox.SetCell(0, ui.Height+3, '╰', fgFrame|termbox.AttrBold, termbox.ColorDefault)
 	for j := 1; j < ui.Width+1; j++ {
-		termbox.SetCell(j, ui.Height+3, '─', termbox.ColorDefault, termbox.ColorDefault)
+		termbox.SetCell(j, ui.Height+3, '─', fgFrame|termbox.AttrBold, termbox.ColorDefault)
 	}
-	termbox.SetCell(ui.Width+1, ui.Height+3, '╯', fgFrame, termbox.ColorDefault)
+	termbox.SetCell(ui.Width+1, ui.Height+3, '╯', fgFrame|termbox.AttrBold, termbox.ColorDefault)
 
 	termbox.Flush()
 }
