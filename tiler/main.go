@@ -20,24 +20,35 @@ var posY = 0
 
 var markX = -1
 var markY = -1
+var prefix = 1
 
 func draw() {
+	// axes
 	for i := 0; i < 12; i++ {
 		ch0 := ' '
 		if i >= 9 {
 			ch0 = '1'
 		}
 		ch1 := rune('0' + (i+1)%10)
-		termbox.SetCell(0, i+1, ch0, termbox.ColorDefault, termbox.ColorDefault)
-		termbox.SetCell(1, i+1, ch1, termbox.ColorDefault, termbox.ColorDefault)
-		termbox.SetCell(26, i+1, ch0, termbox.ColorDefault, termbox.ColorDefault)
-		termbox.SetCell(27, i+1, ch1, termbox.ColorDefault, termbox.ColorDefault)
-		termbox.SetCell(2*i+2, 0, ch0, termbox.ColorDefault, termbox.ColorDefault)
-		termbox.SetCell(2*i+3, 0, ch1, termbox.ColorDefault, termbox.ColorDefault)
-		termbox.SetCell(2*i+2, 13, ch0, termbox.ColorDefault, termbox.ColorDefault)
-		termbox.SetCell(2*i+3, 13, ch1, termbox.ColorDefault, termbox.ColorDefault)
+		fgX := termbox.ColorDefault
+		fgY := termbox.ColorDefault
+		if i == posX {
+			fgX = termbox.ColorWhite | termbox.AttrBold
+		}
+		if i == posY {
+			fgY = termbox.ColorWhite | termbox.AttrBold
+		}
+		termbox.SetCell(0, i+1, ch0, fgY, termbox.ColorDefault)
+		termbox.SetCell(1, i+1, ch1, fgY, termbox.ColorDefault)
+		termbox.SetCell(26, i+1, ch0, fgY, termbox.ColorDefault)
+		termbox.SetCell(27, i+1, ch1, fgY, termbox.ColorDefault)
+		termbox.SetCell(2*i+2, 0, ch0, fgX, termbox.ColorDefault)
+		termbox.SetCell(2*i+3, 0, ch1, fgX, termbox.ColorDefault)
+		termbox.SetCell(2*i+2, 13, ch0, fgX, termbox.ColorDefault)
+		termbox.SetCell(2*i+3, 13, ch1, fgX, termbox.ColorDefault)
 	}
 
+	// grid
 	for i := 0; i < 12; i++ {
 		for j := 0; j < 12; j++ {
 			fg := termbox.ColorBlue
@@ -48,7 +59,7 @@ func draw() {
 			ch := '░'
 			if i == posX && j == posY {
 				ch = '█'
-				fg = termbox.ColorCyan
+				fg = termbox.ColorYellow | (fg & termbox.AttrBold)
 			} else if markX >= 0 && markY >= 0 {
 				l, r, t, b := posX, markX, posY, markY
 				if l > r {
@@ -66,6 +77,19 @@ func draw() {
 			termbox.SetCell(2*i+3, j+1, ch, fg, termbox.ColorDefault)
 		}
 	}
+
+	// prefix
+	prfg := termbox.ColorGreen | termbox.AttrBold
+	if prefix == 1 {
+		prfg = termbox.ColorBlack | termbox.AttrBold
+	}
+	pr0 := ' '
+	if prefix >= 10 {
+		pr0 = '1'
+	}
+	pr1 := rune('0' + prefix%10)
+	termbox.SetCell(0, 0, pr0, prfg, termbox.ColorDefault)
+	termbox.SetCell(1, 0, pr1, prfg, termbox.ColorDefault)
 
 	termbox.Flush()
 }
@@ -85,6 +109,23 @@ func mousePos(ev termbox.Event) (x int, y int) {
 		y = 11
 	}
 	return
+}
+
+func doMove(dx, dy int) {
+	posX += dx
+	if posX < 0 {
+		posX = 0
+	}
+	if posX > 11 {
+		posX = 11
+	}
+	posY += dy
+	if posY < 0 {
+		posY = 0
+	}
+	if posY > 11 {
+		posY = 11
+	}
 }
 
 func uiMain() error {
@@ -111,43 +152,77 @@ func uiMain() error {
 				markY = -1
 				return nil
 			case termbox.KeyArrowUp:
-				if posY > 0 {
-					posY--
-				}
+				doMove(0, -prefix)
+				prefix = 1
 			case termbox.KeyArrowDown:
-				if posY < 11 {
-					posY++
-				}
+				doMove(0, prefix)
+				prefix = 1
 			case termbox.KeyArrowLeft:
-				if posX > 0 {
-					posX--
-				}
+				doMove(-prefix, 0)
+				prefix = 1
 			case termbox.KeyArrowRight:
-				if posX < 11 {
-					posX++
-				}
+				doMove(prefix, 0)
+				prefix = 1
 			case termbox.KeyEnter:
-				if markX < 0 {
-					markX, markY = posX, posY
-				} else {
+				if markX >= 0 {
 					return nil
 				}
+				fallthrough
+			case termbox.KeySpace:
+				markX, markY = posX, posY
+				prefix = 1
 			case termbox.KeyTab:
 				if markX >= 0 {
 					markX, posX = posX, markX
 					markY, posY = posY, markY
 				}
+				prefix = 1
 			case termbox.KeyBackspace, termbox.KeyBackspace2:
 				markX = -1
 				markY = -1
+				prefix = 1
 			default:
 				switch ev.Ch {
-				case 'q': // FIXME: same as Esc
+				case 'q':
 					markX = -1
 					markY = -1
 					return nil
-				case ' ':
-					markX, markY = posX, posY
+				case 'e':
+					markX = -1
+					markY = -1
+					prefix = 1
+				case 'w':
+					doMove(0, -prefix)
+					prefix = 1
+				case 's':
+					doMove(0, prefix)
+					prefix = 1
+				case 'a':
+					doMove(-prefix, 0)
+					prefix = 1
+				case 'd':
+					doMove(prefix, 0)
+					prefix = 1
+				case 'W':
+					posY = 0
+					prefix = 1
+				case 'S':
+					posY = 11
+					prefix = 1
+				case 'A':
+					posX = 0
+					prefix = 1
+				case 'D':
+					posX = 11
+					prefix = 1
+				case '1', '2', '3', '4', '5', '6', '7', '8', '9':
+					prefix = int(ev.Ch - '0')
+				case '0':
+					prefix = 10
+				case '-':
+					prefix = 11
+				case '=':
+					prefix = 12
 				}
 			}
 		case termbox.EventMouse:
