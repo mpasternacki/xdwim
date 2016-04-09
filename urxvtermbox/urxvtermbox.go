@@ -52,7 +52,7 @@ func TermboxUrxvt(width, height int, args ...string) (func(), error) {
 	}
 
 	pty, fini, err := UrxvtPty(append(
-		[]string{"-geometry", fmt.Sprintf("%dx%d", width, height)},
+		[]string{"+sb", "-geometry", fmt.Sprintf("%dx%d", width, height)},
 		args...)...)
 
 	if err != nil {
