@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/BurntSushi/xgb/xproto"
 	"github.com/BurntSushi/xgbutil"
@@ -131,6 +132,9 @@ func Desktops(xu *xgbutil.XUtil) ([]WMDesktop, error) {
 	}
 
 	for _, xw := range xws {
+		isActive := xw == aw
+		isUrgent := false
+
 		name, err := ewmh.WmNameGet(xu, xw)
 		if err != nil {
 			return nil, err
@@ -138,16 +142,15 @@ func Desktops(xu *xgbutil.XUtil) ([]WMDesktop, error) {
 
 		hints, err := icccm.WmHintsGet(xu, xw)
 		if err != nil {
-			return nil, err
+			log.Printf("WARN: WmHintsGet(%v): %v", xw, err)
+		} else {
+			isUrgent = hints.Flags&icccm.HintUrgency == icccm.HintUrgency
 		}
 
 		desk, err := ewmh.WmDesktopGet(xu, xw)
 		if err != nil {
 			return nil, err
 		}
-
-		isActive := xw == aw
-		isUrgent := hints.Flags&icccm.HintUrgency == icccm.HintUrgency
 
 		desktops[desk].Windows = append(desktops[desk].Windows, WMWindow{
 			XWin:     xw,
